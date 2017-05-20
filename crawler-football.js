@@ -3,75 +3,54 @@ let cheerio = require('cheerio');
 
 let championships = ['brasileirao', 'serieb'];
 let urls = {
-    'brasileirao': 'https://esporte.uol.com.br/futebol/campeonatos/brasileirao/jogos/',
-    'serieb': 'https://esporte.uol.com.br/futebol/campeonatos/serie-b/jogos/'
-}
-
-const getDay = (date) => {
-  const dateSplitted = date.split(' - ');
-  const d = dateSplitted.length > 0 ? dateSplitted[0].trim() : '';
-  return d;
-}
-
-const getHour = (date) => {
-  const dateSplitted = date.split(' - ');
-  const h = dateSplitted.length > 0 ? dateSplitted[1].trim() : '';
-  return h;
-}
-
-const printDay = (d) => {
-  return console.log('[' + d + ']');
-}
-
-const formatTeamName = (teamStr = '') => {
-  let teamName = teamStr + '             ';
-  teamName = teamName.substr(0,13);
-  return teamName;
+    'brasileirao': 'http://www.cbf.com.br/competicoes/brasileiro-serie-a/tabela/2017',
+    'serieb': 'http://www.cbf.com.br/competicoes/brasileiro-serie-b/tabela/2017',
+    'seriec': 'http://www.cbf.com.br/competicoes/brasileiro-serie-c/tabela/2017',
+    'seried': 'http://www.cbf.com.br/competicoes/brasileiro-serie-d/tabela/2017'
 }
 
 const printResults = (url, round) => {
   request(url, function (error, response, html) {
     if (!error && response.statusCode == 200) {
       let $ = cheerio.load(html);
+      let roundText = '';
 
-      $('.confrontos-10').each(function(i, element) {
+      $('.carousel-inner').find('.item').each((i, r) => {
+        roundText = $(r).find('h3').text().trim();
 
-        if(!round || i+1 == round) {
-          let games = $(element).find('article');
-          let datetime = $(games[0]).find('time').text();
-          let currentDay = getDay(datetime);
-
-          if(currentDay !== '') {
-            console.log('\nMatchday ' + parseInt(i+1));
-            printDay(currentDay);
-
-            $(games).each(function(j, el) {
-              let datetime = $(el).find('time').text();
-              let homeTeam = $(el).find('.time1 abbr').attr('title');
-              let homeScore = $(el).find('.time1 .gols').text();
-              let awayTeam = $(el).find('.time2 abbr').attr('title');
-              let awayScore = $(el).find('.time2 .gols').text();
-              let local = $(el).find('.local').text();
-              let day = getDay(datetime);
-              let hour = getHour(datetime);
-              let result = ` ${homeScore} - ${awayScore} `;
-
-              if(currentDay !== day) {
-                currentDay = day;
-                printDay(currentDay);
-              }
-
-              console.log(formatTeamName(homeTeam) + result + formatTeamName(awayTeam) + '  #  @ ' + local + ' ' + hour);
-            });
-          }
+        if(i >= round) {
+          return false;
         }
 
-      });
+        console.log('\n' + roundText);
+        $(r).children().each((j, row) => {
+          var isGame = $(row).hasClass('row');
+          var isDate = $(row).hasClass('headline');
+
+          if(isDate) {
+            var d = $(row).find('h4').text().trim();
+            var weekDay = d.substr(0,3);
+            var monthDay = d.split(' ')[1].trim();
+            var month = d.split(' ')[3].trim();
+            console.log('[' + weekDay + ', ' + monthDay + '/' + month + ']');
+          }
+
+          if(isGame) {
+            var homeTeam = $(row).find('.game-team-1 span').text().split(' - ')[0].trim().concat('                         ').substr(0, 25);
+            var awayTeam = $(row).find('.game-team-2 span').text().split(' - ')[0].trim();
+            var score = $(row).find('.game-score').find('span');
+            score = score.text().replace(/(\r\n|\n|\r| )/gm,"").replace('X', ' - ');
+            console.log(homeTeam + ' ' + score + '   ' + awayTeam);
+          }
+        })
+
+        // console.log('\n');
+      })
     }
   });
 }
 
-let championship = process.argv.length > 2 ? process.argv[2] : 'brasileirao';
-let round = process.argv.length > 3 ? process.argv[3] : undefined;
+let championship = process.argv.length > 2 ? process.argv[3] : 'brasileirao';
+let round = process.argv.length > 4 ? process.argv[5] : 38;
 
 printResults(urls[championship], round);
